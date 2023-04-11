@@ -29,7 +29,7 @@ from unified_planning.model import (
 )
 from unified_planning.model.types import _UserType, _RealType, _IntType
 from typing import IO, Dict, List, Optional, cast, Union
-from io1 import StringIO
+from io import StringIO
 
 ANML_KEYWORDS = {
     "action",

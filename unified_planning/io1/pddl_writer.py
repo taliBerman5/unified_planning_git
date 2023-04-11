@@ -39,7 +39,7 @@ from unified_planning.exceptions import (
 )
 from unified_planning.model.types import _UserType
 from typing import Callable, Dict, IO, List, Optional, Set, Union, cast
-from io1 import StringIO
+from io import StringIO
 from functools import reduce
 
 PDDL_KEYWORDS = {

@@ -22,7 +22,7 @@ import unified_planning.model.htn
 import unified_planning.model.walkers as walkers
 from unified_planning.model.types import _UserType, _IntType, _RealType
 from typing import Dict, IO, Optional, cast
-from io1 import StringIO
+from io import StringIO
 
 
 class ConverterToPythonString(walkers.DagWalker):

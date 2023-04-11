@@ -23,6 +23,7 @@ import unified_planning as up
 from unified_planning.exceptions import UPConflictingEffectsException
 from enum import Enum, auto
 from typing import List, Callable, Dict, Optional, Set, Tuple, Union
+import numpy as np
 
 
 class EffectKind(Enum):
@@ -232,6 +233,79 @@ class SimulatedEffect:
         return self._function
 
 
+class ProbabilisticEffect:
+    """
+    This class represents a `probabilistic effect` over a list of :class:`~unified_planning.model.Fluent` expressions.
+    The `fluent's parameters` must be constants or :class:`~unified_planning.model.Action` `parameters`.
+    The callable probability_func must return the result of the `probabilistic effects` applied
+    in the given :class:`~unified_planning.model.State` for the specified `fluent` expressions.
+    """
+
+    def __init__(
+        self,
+        fluent: "up.model.fnode.FNode",
+        probability_func: Callable[
+            [
+                "up.model.problem.AbstractProblem",
+                "up.model.state.ROState",
+            ],
+            "up.model.fnode.FNode",
+        ],
+        values: List["up.model.fnode.FNode"],
+    ):
+        self._fluent = fluent
+        self._probability_func = probability_func
+        self._values = values
+
+    def __repr__(self) -> str:  #TODO: TB maybe needs to be changed
+        return f"{self._fluent} := probabilistic, optional values: {self._values}"
+
+    def __eq__(self, oth: object) -> bool:
+        if isinstance(oth, ProbabilisticEffect):
+            return self._fluent == oth._fluent and self._probability_func == oth._probability_func and self._values == oth._values
+        else:
+            return False
+
+    def __hash__(self) -> int:
+        res = hash(self._fluent)
+        res += hash(self._probability_func)
+        for v in self._values:
+            res += hash(v)
+        return res
+
+    def environment(self) -> "up.environment.Environment":
+        """Returns this `Effect's Environment`."""
+        return self._fluent.environment
+    def clone(self):
+        new_probabilistic_effect = ProbabilisticEffect(self._fluent, self._probability_func, self._values)
+        return new_probabilistic_effect
+
+    @property
+    def fluent(self) -> "up.model.fnode.FNode":
+        """Returns the `Fluent` that is modified by this `Effect`."""
+        return self._fluent
+
+    @property
+    def values(self) -> List["up.model.fnode.FNode"]:
+        """Returns the possible `values` given to the `Fluent` by this `Effect`."""
+        return self._values
+
+    @property
+    def function(
+        self,
+    ) -> Callable[
+        [
+        ],
+        "up.model.fnode.FNode",
+    ]:
+        """
+        Return the function that contains the information on how the `fluent` of this `ProbabilisticEffect`
+        is modified when this `probabilistic effect` is applied.
+        """
+        return self._function
+
+
+
 def check_conflicting_effects(
     effect: Effect,
     timing: Optional["up.model.timing.Timing"],
@@ -341,4 +415,74 @@ def check_conflicting_simulated_effects(
                 msg = f"The simulated effect {simulated_effect} is in conflict with the effects already in the {name}."
             else:
                 msg = f"The simulated effect {simulated_effect} at timing {timing} is in conflict with the effects already in the {name}."
+            raise UPConflictingEffectsException(msg)
+
+def check_conflicting_probabilistic_effects(
+    probabilistic_effect: ProbabilisticEffect,
+    timing: Optional["up.model.timing.Timing"],
+    simulated_effect: Optional[SimulatedEffect],
+    fluents_assigned: Dict["up.model.fnode.FNode", "up.model.fnode.FNode"],
+    fluents_inc_dec: Set["up.model.fnode.FNode"],
+    probabilistic_effects: List[ProbabilisticEffect],
+    effects: List[Effect],
+
+    name: str,
+):
+    """
+    This method checks if the simulated effect that would be added is in conflict with the effects
+    already in the action/problem.
+
+    :param probabilistic_effect: The target simulated_effect to add.
+    :param timing: Optionally, the timing at which the simulated_effect is performed; None if the timing
+        is not meaningful, like in InstantaneousActions.
+    :param simulated_effect: The simulated effect that happen in the same moment of the effect.
+    :param fluents_assigned: The mapping from a fluent to it's value of the effects happening in the
+        same instant of the given simulated_effect.
+    :param fluents_inc_dec: The set of fluents being increased or decremented in the same instant
+        of the given simulated_effect.
+    :param probabilistic_effects: The list of probabilistic effects that happens in the same moment of the effect.
+    :param effects: The list of effects that happens in the same moment of the effect.
+    :param name: string used for better error indexing.
+    :raises: UPConflictingException if the given simulated_effect is in conflict with the data structure around it.
+    """
+    f = probabilistic_effect.fluent
+    if f in fluents_inc_dec or f in fluents_assigned:
+        if timing is None:
+            msg = f"The probabilistic effect {probabilistic_effect} is in conflict with the effects already in the {name}."
+        else:
+            msg = f"The probabilistic effect {probabilistic_effect} at timing {timing} is in conflict with the effects already in the {name}."
+        raise UPConflictingEffectsException(msg)
+
+
+    elif (
+            simulated_effect is not None
+            and f in simulated_effect.fluents
+    ):
+        if timing is None:
+            msg = f"The effect {probabilistic_effect} is in conflict with the simulated effects already in the {name}."
+        else:
+            msg = f"The effect {probabilistic_effect} at timing {timing} is in conflict with the simulated effects already in the {name}."
+        raise UPConflictingEffectsException(msg)
+
+
+    elif (
+            effects
+    ):
+        effects_fluents = list(np.concatenate([effect.fluent for effect in effects]).flat)
+        if f in effects_fluents:
+            if timing is None:
+                msg = f"The effect {probabilistic_effect} is in conflict with the effects already in the {name}."
+            else:
+                msg = f"The effect {probabilistic_effect} at timing {timing} is in conflict with the effects already in the {name}."
+            raise UPConflictingEffectsException(msg)
+
+    elif (
+            probabilistic_effects
+    ):
+        probabilistic__effects_fluents = [effect.fluent for effect in probabilistic_effects]
+        if f in probabilistic__effects_fluents:
+            if timing is None:
+                msg = f"The effect {probabilistic_effect} is in conflict with the probabilistic_ effects already in the {name}."
+            else:
+                msg = f"The effect {probabilistic_effect} at timing {timing} is in conflict with the probabilistic_ effects already in the {name}."
             raise UPConflictingEffectsException(msg)
