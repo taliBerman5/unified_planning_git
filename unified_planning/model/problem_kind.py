@@ -26,6 +26,7 @@ FEATURES = {
         "CONTINGENT",
         "ACTION_BASED_MULTI_AGENT",
         "SCHEDULING",
+        "ACTION_BASED_STAR_END",
     ],
     "PROBLEM_TYPE": ["SIMPLE_NUMERIC_PLANNING", "GENERAL_NUMERIC_PLANNING"],
     "TIME": [
@@ -58,6 +59,7 @@ FEATURES = {
         "TEMPORAL_OVERSUBSCRIPTION",
     ],
     "SIMULATED_ENTITIES": ["SIMULATED_EFFECTS"],
+    "PROBABILISTIC_ENTITIES": ["PROBABILISTIC_EFFECTS"],
     "CONSTRAINTS_KIND": ["TRAJECTORY_CONSTRAINTS"],
     "HIERARCHICAL": [
         "METHOD_PRECONDITIONS",
@@ -256,3 +258,10 @@ multi_agent_kind.set_conditions_kind("UNIVERSAL_CONDITIONS")
 multi_agent_kind.set_effects_kind("CONDITIONAL_EFFECTS")
 multi_agent_kind.set_fluents_type("NUMERIC_FLUENTS")
 multi_agent_kind.set_fluents_type("OBJECT_FLUENTS")
+
+
+probabilistic_kind = ProblemKind()
+probabilistic_kind.set_problem_class("ACTION_BASED")
+probabilistic_kind.set_typing("FLAT_TYPING")
+simple_numeric_kind.set_fluents_type("NUMERIC_FLUENTS")
+simple_numeric_kind.set_probabilistic_entities("PROBABILISTIC_EFFECTS")

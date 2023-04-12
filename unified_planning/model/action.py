@@ -936,6 +936,8 @@ class DurationProbabilisticAction(Action):
     end action:
         preconditions - start action is activated
         effects - the effects of the action
+
+    **** don't support conditional effect and simulated effect
     """
 
     def __init__(

@@ -738,6 +738,12 @@ class Problem(  # type: ignore[misc]
     ):
         for p in action.parameters:
             self._update_problem_kind_type(p.type)
+
+        if isinstance(action, up.model.action.FixDurationStartAction):
+            self._kind.set_problem_class("ACTION_BASED_STAR_END")
+            self._kind.set_time("CONTINUOUS_TIME")
+        if isinstance(action, up.model.action.ProbabilisticAction):
+            self._kind.set_probabilistic_entities("PROBABILISTIC_EFFECTS")
         if isinstance(action, up.model.action.SensingAction):
             self._kind.set_problem_class("CONTINGENT")
         if isinstance(action, up.model.action.InstantaneousAction):
@@ -802,3 +808,4 @@ class Problem(  # type: ignore[misc]
             self._kind.set_time("CONTINUOUS_TIME")
         else:
             raise NotImplementedError
+
