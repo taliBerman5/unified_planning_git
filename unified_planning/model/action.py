@@ -21,6 +21,7 @@ and a `list` of `effects`.
 
 import unified_planning as up
 from unified_planning.environment import get_environment, Environment
+import unified_planning.shortcuts
 from unified_planning.exceptions import (
     UPTypeError,
     UPUnboundedVariablesError,
@@ -854,67 +855,10 @@ class ProbabilisticAction(InstantaneousAction):
         self._probabilistic_effects = []
 
 
-
-
-class DurationProbabilisticAction(ProbabilisticAction):
-    """Represents an action with probabilistic effect."""
-    def __init__(
-            self,
-            _name: str,
-            _parameters: Optional["OrderedDict[str, up.model.types.Type]"] = None,
-            _env: Optional[Environment] = None,
-            **kwargs: "up.model.types.Type",
-    ):
-        ProbabilisticAction.__init__(self, _name, _parameters, _env, **kwargs)
-        self._duration: "up.model.timing.DurationInterval" = (
-            up.model.timing.FixedDuration(self._environment.expression_manager.Int(0)))
-    def __repr__(self) -> str:
-        b = ProbabilisticAction.__repr__(self)[0:-3]
-        s = ["DurationAction-", b]
-        s.append(f"    duration = {str(self._duration)}\n")
-        s.append("  }")
-        return "".join(s)
-
-    def __eq__(self, oth: object) -> bool:
-        if isinstance(oth, DurationProbabilisticAction):
-            super().__eq__(oth) and self._duration != oth._duration
-        else:
-            return False
-
-    def __hash__(self) -> int:
-        return super().__hash__() + hash(self._duration)
-
-    def clone(self):
-        new_params = OrderedDict()
-        for param_name, param in self._parameters.items():
-            new_params[param_name] = param.type
-        new_durative_probabilistic_action = DurationProbabilisticAction(self._name, new_params, self._environment)
-        new_durative_probabilistic_action._preconditions = self._preconditions[:]
-        new_durative_probabilistic_action._effects = [e.clone() for e in self._effects]
-        new_durative_probabilistic_action._fluents_assigned = self._fluents_assigned.copy()
-        new_durative_probabilistic_action._fluents_inc_dec = self._fluents_inc_dec.copy()
-        new_durative_probabilistic_action._simulated_effect = self._simulated_effect
-        new_durative_probabilistic_action._probabilistic_effects = [pe.clone() for pe in self._probabilistic_effects]
-        return new_durative_probabilistic_action
-
-    def duration(self) -> "up.model.timing.DurationInterval":
-        """Returns the `action` `duration interval`."""
-        return self._duration
-
-    def set_fixed_duration(self, value: Union["up.model.fnode.FNode", int, Fraction]):
-        """
-        Sets the `duration interval` for this `action` as the interval `[value, value]`.
-
-        :param value: The `value` set as both edges of this `action's duration`.
-        """
-        (value_exp,) = self._environment.expression_manager.auto_promote(value)
-        self.set_duration_constraint(up.model.timing.FixedDuration(value_exp))
-
-
-
-
 class FixDurationStartAction(InstantaneousAction):
-    """Represents an action with probabilistic effect."""
+    """Represents a start action with fix duration.
+    This is the start action of the DurationProbabilisticAction action class
+    _end_action - the end action of this start action """
     def __init__(
             self,
             _name: str,
@@ -925,7 +869,7 @@ class FixDurationStartAction(InstantaneousAction):
         InstantaneousAction.__init__(self, _name, _parameters, _env, **kwargs)
         self._duration: "up.model.timing.DurationInterval" = (
             up.model.timing.FixedDuration(self._environment.expression_manager.Int(0)))
-        self._end_action: ProbabilisticAction
+        self._end_action: ProbabilisticAction = None
     def __repr__(self) -> str:
         b = InstantaneousAction.__repr__(self)[0:-3]
         s = ["FixDurationStartAction-", b]
@@ -937,7 +881,7 @@ class FixDurationStartAction(InstantaneousAction):
     def __eq__(self, oth: object) -> bool:
         if isinstance(oth, FixDurationStartAction):
             super().__eq__(oth) and \
-            self._duration != oth._duration and \
+            self._duration == oth._duration and \
             self._end_action == oth._end_action
         else:
             return False
@@ -974,8 +918,224 @@ class FixDurationStartAction(InstantaneousAction):
         (value_exp,) = self._environment.expression_manager.auto_promote(value)
         self.set_duration_constraint(up.model.timing.FixedDuration(value_exp))
 
+    def set_end_action(self, end_action: ProbabilisticAction):
+        """Returns the `end_action` `name`."""
+        self._end_action = end_action
+
     def end_action(self) -> ProbabilisticAction:
         """Returns the `end_action` `name`."""
         return self._end_action
+
+
+class DurationProbabilisticAction(Action):
+    """Represents an action with fix duration and probabilistic effect.
+    The action is compound from instantaneous two actions -
+    start action:
+        preconditions - the precondition of the action
+        effects - during activation effects
+    end action:
+        preconditions - start action is activated
+        effects - the effects of the action
+    """
+
+    def __init__(
+            self,
+            _name: str,
+            _parameters: Optional["OrderedDict[str, up.model.types.Type]"] = None,
+            _env: Optional[Environment] = None,
+            **kwargs: "up.model.types.Type",
+    ):
+        Action.__init__(self, _name, _parameters, _env, **kwargs)
+        self._start_action = FixDurationStartAction("start_"+_name, _parameters)
+        self._end_action = ProbabilisticAction("end_"+_name, _parameters)
+        self._start_action.set_end_action(self._end_action)
+
+    def __repr__(self) -> str:
+        b = Action.__repr__(self)[0:-3]
+        s = ["duration probabilistic-", b]
+        s.append(f"    start action = {self._start_action.__repr__()}\n")
+        s.append(f"    end action = {self._end_action.__repr__()}\n")
+        s.append("  }")
+        return "".join(s)
+
+    def __eq__(self, oth: object) -> bool:
+        if isinstance(oth, DurationProbabilisticAction):
+            super().__eq__(oth) and self._start_action == oth._start_action and self._end_action == oth._end_action
+        else:
+            return False
+
+    def __hash__(self) -> int:
+        return super().__hash__() + hash(self._start_action) + hash(self._end_action)
+
+    def clone(self):
+        new_params = OrderedDict()
+        for param_name, param in self._parameters.items():
+            new_params[param_name] = param.type
+        new_durative_probabilistic_action = DurationProbabilisticAction(self._name, new_params, self._environment)
+        new_durative_probabilistic_action._start_action = self._start_action.clone()
+        new_durative_probabilistic_action._end_action = self._end_action.clone()
+        return new_durative_probabilistic_action
+
+    def start_action(self) -> FixDurationStartAction:
+        return self._start_action
+
+    def end_action(self) -> ProbabilisticAction:
+        return self._end_action
+
+    def preconditions(self) -> List["up.model.fnode.FNode"]:
+        """Returns the `list` of the `Action` `preconditions`."""
+        return self._start_action.preconditions()
+
+    def clear_preconditions(self):
+        """Removes all the `Action preconditions`"""
+        self._start_action.clear_preconditions()
+
+    def during_activation_effects(self) -> List["up.model.effect.Effect"]:
+        """Returns the `list` of the `Action effects`."""
+        return self._start_action.effects()
+
+    def clear_during_activation_effects(self):
+        """Removes all the `Action's effects`."""
+        self._start_action.clear_effects()
+
+
+    def effects(self) -> List["up.model.effect.Effect"]:
+        """Returns the `list` of the `Action effects`."""
+        return self._end_action.effects()
+
+
+    def clear_effects(self):
+        """Removes all the `Action's effects`."""
+        self._end_action.clear_effects()
+
+    def probabilistic_effect(self) -> List["up.model.effect.ProbabilisticEffect"]:
+        """Returns the `action` `probabilistic effect`."""
+        return self._end_action.probabilistic_effects()
+
+    def add_precondition(
+        self,
+        precondition: Union[
+            "up.model.fnode.FNode",
+            "up.model.fluent.Fluent",
+            "up.model.parameter.Parameter",
+            bool,
+        ],
+    ):
+        """
+        Adds the given expression to `action's preconditions`.
+
+        :param precondition: The expression that must be added to the `action's preconditions`.
+        """
+        self._start_action.add_precondition(precondition)
+
+    def add_during_activation_effect(
+        self,
+        fluent: Union["up.model.fnode.FNode", "up.model.fluent.Fluent"],
+        value: "up.model.expression.Expression",
+        condition: "up.model.expression.BoolExpression" = True,
+    ):
+        """
+        Adds the given `assignment` to the `action's duration effects`.
+
+        :param fluent: The `fluent` of which `value` is modified by the `assignment`.
+        :param value: The `value` to assign to the given `fluent`.
+        :param condition: The `condition` in which this `duration effect` is applied; the default
+            value is `True`.
+        """
+
+        self._start_action.add_effect(fluent, value, condition)
+
+    def add_end_precondition(
+            self,
+            precondition: Union[
+                "up.model.fnode.FNode",
+                "up.model.fluent.Fluent",
+                "up.model.parameter.Parameter",
+                bool,
+            ],
+    ):
+        """
+        Adds the given expression to `action's preconditions`.
+
+        :param precondition: The expression that must be added to the `action's preconditions`.
+        """
+        self._end_action.add_precondition(precondition)
+    def add_effect(
+        self,
+        fluent: Union["up.model.fnode.FNode", "up.model.fluent.Fluent"],
+        value: "up.model.expression.Expression",
+        condition: "up.model.expression.BoolExpression" = True,
+    ):
+        """
+        Adds the given `assignment` to the `action's effects`.
+
+        :param fluent: The `fluent` of which `value` is modified by the `assignment`.
+        :param value: The `value` to assign to the given `fluent`.
+        :param condition: The `condition` in which this `effect` is applied; the default
+            value is `True`.
+        """
+
+        self._end_action.add_effect(fluent, value, condition)
+
+    def add_probabilistic_effect(
+            self,
+            fluent: "up.model.fnode.FNode",
+            probability_func: Callable[
+                [
+                    "up.model.problem.AbstractProblem",
+                    "up.model.state.ROState",
+                ],
+                "up.model.fnode.FNode",
+            ],
+            values: List["up.model.fnode.FNode"],
+    ):
+        """
+        Adds the given `assignment` to the `action's probabilistic_effects`.
+
+        :param fluent: The `fluent` of which `value` is modified by the `assignment`.
+        :param probability_func: based on the probability function a value is chosen from the values param
+        :param values: The `values` to choose from to the given `fluent`.
+        """
+        self._end_action.add_probabilistic_effect(fluent, probability_func, values)
+
+    def set_probabilistic_effect(self, probabilistic_effect: "up.model.effect.ProbabilisticEffect"):
+        """
+        Sets the given `probabilistic effect` as the only `action's probabilistic effect`.
+
+        :param probabilistic_effect: The `ProbabilisticEffect` instance that must be set as this `action`'s only
+            `probabilistic effect`.
+        """
+        self._end_action.set_probabilistic_effect(probabilistic_effect)
+
+    def _set_preconditions(self, preconditions: List["up.model.fnode.FNode"]):
+        self._start_action._set_preconditions(preconditions)
+
+    def duration(self) -> "up.model.timing.DurationInterval":
+        """Returns the `action` `duration interval`."""
+        return self._start_action.duration()
+
+    def set_fixed_duration(self, value: Union["up.model.fnode.FNode", int, Fraction]):
+        """
+        Sets the `duration interval` for this `action` as the interval `[value, value]`.
+
+        :param value: The `value` set as both edges of this `action's duration`.
+        """
+        self._start_action.set_fixed_duration(value)
+
+
+def start_end_actions(problem, actions: List["up.model.action.DurationProbabilisticAction"]):
+    action = up.shortcuts.UserType('action')
+    action_occurs = up.model.Fluent('action_occurs', up.shortcuts.BoolType(), a=action)
+
+    problem.add_fluent(action)
+    problem.add_fluent(action_occurs, default_initial_value=False)
+
+    for a in actions:
+        start_a = up.model.Object("start_" + a.name, action)
+
+        a.add_during_activation_effect(action_occurs(start_a), True)
+        a.add_end_precondition(action_occurs(start_a), True)
+        a.add_effect(action_occurs(start_a), False)
+        problem.add_object(start_a)
 
 

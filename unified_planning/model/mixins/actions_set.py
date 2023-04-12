@@ -144,6 +144,14 @@ class ActionsSetMixin:
                 raise UPProblemDefinitionError(msg)
             else:
                 warn(msg)
+        if isinstance(action, up.model.action.DurationProbabilisticAction):
+            self._add_action(action.start_action())
+            self._add_action(action.end_action())
+
+        else:
+            self._add_action(action)
+
+    def _add_action(self, action: "up.model.action.Action"):
         self._actions.append(action)
         for param in action.parameters:
             if param.type.is_user_type():

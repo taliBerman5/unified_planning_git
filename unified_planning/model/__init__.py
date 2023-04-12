@@ -19,6 +19,8 @@ from unified_planning.model.action import (
     InstantaneousAction,
     DurativeAction,
     SensingAction,
+    ProbabilisticAction,
+    DurationProbabilisticAction,
 )
 from unified_planning.model.effect import Effect, SimulatedEffect, EffectKind
 from unified_planning.model.expression import (
