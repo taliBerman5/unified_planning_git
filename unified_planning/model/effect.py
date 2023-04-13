@@ -249,7 +249,7 @@ class ProbabilisticEffect:
                 "up.model.problem.AbstractProblem",
                 "up.model.state.ROState",
             ],
-            "up.model.fnode.FNode",
+            List["up.model.fnode.FNode"],
         ],
         values: List["up.model.fnode.FNode"],
     ):
@@ -282,7 +282,8 @@ class ProbabilisticEffect:
 
     def environment(self) -> "up.environment.Environment":
         """Returns this `Effect's Environment`."""
-        return self._fluent.environment
+        return self._fluents[0].environment
+
     def clone(self):
         new_probabilistic_effect = ProbabilisticEffect(self._fluents, self._probability_func, self._values)
         return new_probabilistic_effect
@@ -302,8 +303,10 @@ class ProbabilisticEffect:
         self,
     ) -> Callable[
         [
+            "up.model.problem.AbstractProblem",
+            "up.model.state.ROState",
         ],
-        "up.model.fnode.FNode",
+        List["up.model.fnode.FNode"],
     ]:
         """
         Return the function that contains the information on how the `fluent` of this `ProbabilisticEffect`

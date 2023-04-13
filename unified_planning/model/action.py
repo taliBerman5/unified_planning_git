@@ -1089,7 +1089,7 @@ class DurationProbabilisticAction(Action):
                     "up.model.problem.AbstractProblem",
                     "up.model.state.ROState",
                 ],
-                "up.model.fnode.FNode",
+                List["up.model.fnode.FNode"],
             ],
             values: List["up.model.fnode.FNode"],
     ):
