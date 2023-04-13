@@ -900,6 +900,32 @@ class FixDurationStartAction(InstantaneousAction):
         """Returns the `action` `duration interval`."""
         return self._duration
 
+    def set_duration_constraint(self, duration: "up.model.timing.DurationInterval"):
+        """
+        Sets the `duration interval` for this `action`.
+
+        :param duration: The new `duration interval` of this `action`.
+        """
+        lower, upper = duration.lower, duration.upper
+        tlower = self._environment.type_checker.get_type(lower)
+        tupper = self._environment.type_checker.get_type(upper)
+        assert tlower.is_int_type() or tlower.is_real_type()
+        assert tupper.is_int_type() or tupper.is_real_type()
+        if (
+            lower.is_constant()
+            and upper.is_constant()
+            and (
+                upper.constant_value() < lower.constant_value()
+                or (
+                    upper.constant_value() == lower.constant_value()
+                    and (duration.is_left_open() or duration.is_right_open())
+                )
+            )
+        ):
+            raise UPProblemDefinitionError(
+                f"{duration} is an empty interval duration of action: {self.name}."
+            )
+        self._duration = duration
     def set_fixed_duration(self, value: Union["up.model.fnode.FNode", int, Fraction]):
         """
         Sets the `duration interval` for this `action` as the interval `[value, value]`.

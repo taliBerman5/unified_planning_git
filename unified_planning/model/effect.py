@@ -469,7 +469,7 @@ def check_conflicting_probabilistic_effects(
         elif (
                 effects
         ):
-            effects_fluents = list(np.concatenate([effect.fluent for effect in effects]).flat)
+            effects_fluents = [effect.fluent for effect in effects]
             if f in effects_fluents:
                 if timing is None:
                     msg = f"The effect {probabilistic_effect} is in conflict with the effects already in the {name}."
@@ -480,7 +480,7 @@ def check_conflicting_probabilistic_effects(
         elif (
                 probabilistic_effects
         ):
-            probabilistic__effects_fluents = [effect.fluent for effect in probabilistic_effects]
+            probabilistic__effects_fluents = list(np.concatenate([effect.fluents for effect in probabilistic_effects]).flat)
             if f in probabilistic__effects_fluents:
                 if timing is None:
                     msg = f"The effect {probabilistic_effect} is in conflict with the probabilistic_ effects already in the {name}."
