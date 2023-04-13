@@ -783,7 +783,7 @@ class ProbabilisticAction(InstantaneousAction):
 
     def add_probabilistic_effect(
             self,
-            fluent: "up.model.fnode.FNode",
+            fluents: List["up.model.fnode.FNode"],
             probability_func: Callable[
                 [
                     "up.model.problem.AbstractProblem",
@@ -796,28 +796,30 @@ class ProbabilisticAction(InstantaneousAction):
         """
         Adds the given `assignment` to the `action's probabilistic_effects`.
 
-        :param fluent: The `fluent` of which `value` is modified by the `assignment`.
+        :param fluents: The `fluents` of which `value` is modified by the `assignment`.
         :param probability_func: based on the probability function a value is chosen from the values param
         :param values: The `values` to choose from to the given `fluent`.
         """
 
 
-        [fluent_exp] = self._environment.expression_manager.auto_promote(fluent)
+        fluents_exp = self._environment.expression_manager.auto_promote(fluents)
         values_exp = self._environment.expression_manager.auto_promote(values)
 
-        if not fluent_exp.is_fluent_exp():
-            raise UPUsageError(
-                "fluent field of add_effect must be a Fluent or a FluentExp"
-            )
-        for v in values_exp:
-            if not fluent_exp.type.is_compatible(v.type):
-                # Value is not assignable to fluent (its type is not a subset of the fluent's type).
-                raise UPTypeError(
-                    f"InstantaneousAction effect has an incompatible value type. Fluent type: {fluent_exp.type} // Value type: {values_exp.type}"
+        for f in fluents_exp:
+            if not f.is_fluent_exp():
+                raise UPUsageError(
+                    "fluent field of add_effect must be a Fluent or a FluentExp"
                 )
 
+            for v in values_exp:
+                if not f.type.is_compatible(v.type):
+                    # Value is not assignable to fluent (its type is not a subset of the fluent's type).
+                    raise UPTypeError(
+                        f"ProbabilisticAction effect has an incompatible value type. Fluent type: {f.type} // Value type: {v.type}"
+                    )
+
         self._add_probabilistic_effect_instance(
-            up.model.effect.ProbabilisticEffect(fluent_exp, probability_func, values_exp)
+            up.model.effect.ProbabilisticEffect(fluents_exp, probability_func, values_exp)
         )
 
 
@@ -1081,7 +1083,7 @@ class DurationProbabilisticAction(Action):
 
     def add_probabilistic_effect(
             self,
-            fluent: "up.model.fnode.FNode",
+            fluents: List["up.model.fnode.FNode"],
             probability_func: Callable[
                 [
                     "up.model.problem.AbstractProblem",
@@ -1098,7 +1100,7 @@ class DurationProbabilisticAction(Action):
         :param probability_func: based on the probability function a value is chosen from the values param
         :param values: The `values` to choose from to the given `fluent`.
         """
-        self._end_action.add_probabilistic_effect(fluent, probability_func, values)
+        self._end_action.add_probabilistic_effect(fluents, probability_func, values)
 
     def set_probabilistic_effect(self, probabilistic_effect: "up.model.effect.ProbabilisticEffect"):
         """
