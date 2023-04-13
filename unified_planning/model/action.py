@@ -789,21 +789,18 @@ class ProbabilisticAction(InstantaneousAction):
                     "up.model.problem.AbstractProblem",
                     "up.model.state.ROState",
                 ],
-                "up.model.fnode.FNode",
-            ],
-            values: List["up.model.fnode.FNode"],
+                List["up.model.fnode.FNode"],
+            ]
     ):
         """
         Adds the given `assignment` to the `action's probabilistic_effects`.
 
         :param fluents: The `fluents` of which `value` is modified by the `assignment`.
         :param probability_func: based on the probability function a value is chosen from the values param
-        :param values: The `values` to choose from to the given `fluent`.
         """
 
 
         fluents_exp = self._environment.expression_manager.auto_promote(fluents)
-        values_exp = self._environment.expression_manager.auto_promote(values)
 
         for f in fluents_exp:
             if not f.is_fluent_exp():
@@ -811,15 +808,8 @@ class ProbabilisticAction(InstantaneousAction):
                     "fluent field of add_effect must be a Fluent or a FluentExp"
                 )
 
-            for v in values_exp:
-                if not f.type.is_compatible(v.type):
-                    # Value is not assignable to fluent (its type is not a subset of the fluent's type).
-                    raise UPTypeError(
-                        f"ProbabilisticAction effect has an incompatible value type. Fluent type: {f.type} // Value type: {v.type}"
-                    )
-
         self._add_probabilistic_effect_instance(
-            up.model.effect.ProbabilisticEffect(fluents_exp, probability_func, values_exp)
+            up.model.effect.ProbabilisticEffect(fluents_exp, probability_func)
         )
 
 
@@ -884,13 +874,12 @@ class FixDurationStartAction(InstantaneousAction):
         if isinstance(oth, FixDurationStartAction):
             super().__eq__(oth) and \
             self._duration == oth._duration and \
-            self._end_action == oth._end_action
+                self._end_action == oth._end_action
         else:
             return False
 
     def __hash__(self) -> int:
         return super().__hash__() + hash(self._duration) + self._end_action.__hash__()
-
 
     def clone(self):
         new_params = OrderedDict()
@@ -1002,11 +991,9 @@ class DurationProbabilisticAction(Action):
         """Removes all the `Action's effects`."""
         self._start_action.clear_effects()
 
-
     def effects(self) -> List["up.model.effect.Effect"]:
         """Returns the `list` of the `Action effects`."""
         return self._end_action.effects()
-
 
     def clear_effects(self):
         """Removes all the `Action's effects`."""
@@ -1090,17 +1077,15 @@ class DurationProbabilisticAction(Action):
                     "up.model.state.ROState",
                 ],
                 List["up.model.fnode.FNode"],
-            ],
-            values: List["up.model.fnode.FNode"],
+            ]
     ):
         """
         Adds the given `assignment` to the `action's probabilistic_effects`.
 
-        :param fluent: The `fluent` of which `value` is modified by the `assignment`.
+        :param fluents: The `fluent` of which `value` is modified by the `assignment`.
         :param probability_func: based on the probability function a value is chosen from the values param
-        :param values: The `values` to choose from to the given `fluent`.
         """
-        self._end_action.add_probabilistic_effect(fluents, probability_func, values)
+        self._end_action.add_probabilistic_effect(fluents, probability_func)
 
     def set_probabilistic_effect(self, probabilistic_effect: "up.model.effect.ProbabilisticEffect"):
         """

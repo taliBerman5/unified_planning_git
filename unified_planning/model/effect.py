@@ -250,8 +250,7 @@ class ProbabilisticEffect:
                 "up.model.state.ROState",
             ],
             List["up.model.fnode.FNode"],
-        ],
-        values: List["up.model.fnode.FNode"],
+        ]
     ):
         for f in fluents:
             if not f.is_fluent_exp():
@@ -261,14 +260,13 @@ class ProbabilisticEffect:
 
         self._fluents = fluents
         self._probability_func = probability_func
-        self._values = values
 
     def __repr__(self) -> str:  #TODO: TB maybe needs to be changed
-        return f"{self._fluents} := probabilistic, optional values: {self._values}"
+        return f"{self._fluents} := probabilistic"
 
     def __eq__(self, oth: object) -> bool:
         if isinstance(oth, ProbabilisticEffect):
-            return self._fluents == oth._fluents and self._probability_func == oth._probability_func and self._values == oth._values
+            return self._fluents == oth._fluents and self._probability_func == oth._probability_func
         else:
             return False
 
@@ -276,8 +274,6 @@ class ProbabilisticEffect:
         res = hash(self._probability_func)
         for f in self._fluents:
             res += hash(f)
-        for v in self._values:
-            res += hash(v)
         return res
 
     def environment(self) -> "up.environment.Environment":
@@ -285,18 +281,13 @@ class ProbabilisticEffect:
         return self._fluents[0].environment
 
     def clone(self):
-        new_probabilistic_effect = ProbabilisticEffect(self._fluents, self._probability_func, self._values)
+        new_probabilistic_effect = ProbabilisticEffect(self._fluents, self._probability_func)
         return new_probabilistic_effect
 
     @property
     def fluents(self) -> List["up.model.fnode.FNode"]:
         """Returns the `Fluents` that is modified by this `Effect`."""
         return self._fluents
-
-    @property
-    def values(self) -> List["up.model.fnode.FNode"]:
-        """Returns the possible `values` given to the `Fluent` by this `Effect`."""
-        return self._values
 
     @property
     def probability_function(
