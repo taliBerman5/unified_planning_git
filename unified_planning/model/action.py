@@ -1139,6 +1139,14 @@ class DurationProbabilisticAction(Action):
 
 
 def start_end_actions(problem, actions: List["up.model.Action.DurationProbabilisticAction"]):
+    """ adds occurrence of action fluent to DurationProbabilisticAction
+        The action is consists out of two action - start and end.
+        When the start action is activated one of the effects is that the action is occurs
+        the precondition of the end action is that the start action associated to the end action is occurring
+
+        return :  action_occurs: 'Fluent', receives an action and determine if the action is occurring
+                  objects: all the start-action objects (type DurativeProbabilisticAction)
+     """
     Action = up.shortcuts.UserType('DurativeProbabilisticAction')
     action_occurs = up.model.Fluent('action_occurs', up.shortcuts.BoolType(), a=Action)
     objects = []
