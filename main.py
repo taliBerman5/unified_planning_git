@@ -1,13 +1,25 @@
 from unified_planning.shortcuts import *
 from scipy.stats import bernoulli
 
+
+def add_object_condition_effect(action, object):
+    action.add_precondition(object)
+    action.add_during_activation_effect(object, False)
+    action.add_effect(object, True)
+
+
+duration_probabilistic_actions = []
 problem = unified_planning.model.Problem('stuck_car')
 
 """ Init things that can be pushed """
-Object = UserType('Object')
-objects_names = ['gasPedal', 'car']
-objects = [unified_planning.model.Object(o, Object) for o in objects_names]
-problem.add_objects(objects)
+Car = UserType('Car')
+car = unified_planning.model.Object('car', Car)
+problem.add_object(car)
+
+GasPedal = UserType('GasPedal')
+gasPedal = unified_planning.model.Object('gasPedal', GasPedal)
+problem.add_object(gasPedal)
+
 
 """ Init rocks """
 Rock = UserType('Rock')
@@ -24,13 +36,10 @@ bodyParts = [unified_planning.model.Object(b, BodyPart) for b in bodyParts_names
 problem.add_objects(bodyParts)
 
 car_stuck = unified_planning.model.Fluent('car_stuck', BoolType())
-problem.add_fluent(car_stuck, default_initial_value=True)
+problem.set_initial_value(car_stuck, True)
 
 tired = unified_planning.model.Fluent('tired', BoolType())
-problem.add_fluent(tired, default_initial_value=False)
-
-pushed = unified_planning.model.Fluent('pushed', BoolType(), o=Object)
-problem.add_fluent(pushed, default_initial_value=False)
+problem.set_initial_value(tired, True)
 
 got_rock = unified_planning.model.Fluent('got_rock', BoolType(), r=Rock)
 problem.add_fluent(got_rock, default_initial_value=False)
@@ -53,7 +62,12 @@ problem.add_action(rest)
 
 """ Place a rock under the car Action """
 place_rock = unified_planning.model.DurationProbabilisticAction('place_rock', rock=Rock)
+duration_probabilistic_actions.append(place_rock)
 rock = place_rock.parameter('rock')
+place_rock.set_fixed_duration(3)
+place_rock.add_precondition(got_rock(rock))
+add_object_condition_effect(place_rock, free(bodyParts[0]))
+add_object_condition_effect(place_rock, free(bodyParts[1]))
 
 
 def tired_place_probability(problem, state):
@@ -66,15 +80,8 @@ def tired_place_probability(problem, state):
     return [False]
 
 
-place_rock.add_precondition(got_rock(rock))
-place_rock.add_precondition(free(bodyParts[0]))
-place_rock.add_precondition(free(bodyParts[1]))
-place_rock.set_fixed_duration(3)
-place_rock.add_during_activation_effect(free(bodyParts[0]), False)
-place_rock.add_during_activation_effect(free(bodyParts[1]), False)
 place_rock.add_effect(rock_under_car(rock), True)
-place_rock.add_effect(free(bodyParts[0]), True)
-place_rock.add_effect(free(bodyParts[1]), True)
+place_rock.add_effect(got_rock(rock), False)
 place_rock.add_probabilistic_effect([tired], tired_place_probability)
 problem.add_action(place_rock)
 
@@ -82,8 +89,10 @@ problem.add_action(place_rock)
 """ Search a rock Action 
     the robot can find a one of the rocks"""
 search = unified_planning.model.action.DurationProbabilisticAction('search')
-search.add_precondition(free(bodyParts[0]))
-search.add_precondition(free(bodyParts[1]))
+duration_probabilistic_actions.append(search)
+search.set_fixed_duration(3)
+add_object_condition_effect(search, free(bodyParts[0]))
+add_object_condition_effect(search, free(bodyParts[1]))
 
 
 def rock_probability(problem, state):
@@ -96,16 +105,95 @@ def rock_probability(problem, state):
     return rock_found
 
 
-search.add_probabilistic_effect([got_rock(rocks[0]), got_rock(rock[1])], rock_probability)
-search.add_during_activation_effect(free(bodyParts[0]), False)
-search.add_during_activation_effect(free(bodyParts[1]), False)
-search.add_effect(free(bodyParts[0]), True)
-search.add_effect(free(bodyParts[1]), True)
+search.add_probabilistic_effect([got_rock(rocks[0]), got_rock(rocks[1])], rock_probability)
 problem.add_action(search)
 
-push = unified_planning.model.action.DurationProbabilisticAction('push', object=Object)
+""" Push Actions """
 
-problem.add_action(push)
 
-problem.add_goal(car_stuck)
+""" Push Gas Pedal Action """
+push_gas = unified_planning.model.action.DurationProbabilisticAction('push_gas')
+duration_probabilistic_actions.append(push_gas)
+push_gas.set_fixed_duration(2)
+add_object_condition_effect(push_gas, free(bodyParts[1]))
+
+problem.add_action(push_gas)
+
+
+""" Push Car Action """
+push_car = unified_planning.model.action.DurationProbabilisticAction('push_car')
+duration_probabilistic_actions.append(push_car)
+push_car.set_fixed_duration(2)
+add_object_condition_effect(push_car, free(bodyParts[0]))
+
+
+problem.add_action(push_car)
+
+
+
+
+
+action_occurs, durative_probabilistic_action_objects = unified_planning.model.action.start_end_actions(problem, duration_probabilistic_actions)
+start_push_gas , start_push_car = (None, None)
+for o in durative_probabilistic_action_objects:
+    if o.name == 'start-push_gas':
+        start_push_gas = o
+    if o.name == 'start-push_car':
+        start_push_car = o
+
+def tired_push_probability(problem, state):
+    # The probability of finding a good rock when searching
+    p = 0.8
+    rv = bernoulli(p)
+    tired = rv.rvs(1)[0][0]
+    if tired:
+        return [True]
+    return [False]
+
+
+def push_probability(problem, state):
+    # The probability of getting the car out when pushing
+    p = 0
+    predicates = state.predicates
+
+    #The bad rock is under the car
+    if rock_under_car(rocks[0]) in predicates:
+        if action_occurs(start_push_car) in predicates and action_occurs(start_push_gas) in predicates:
+            p = 0.8
+        elif action_occurs(start_push_car) in predicates:
+            p = 0.8
+        elif action_occurs(start_push_gas) in predicates:
+            p = 0.8
+
+    # The good rock is under the car
+    elif rock_under_car(rocks[1]) in predicates:
+        if action_occurs(start_push_car) in predicates and action_occurs(start_push_gas) in predicates:
+            p = 0.8
+        elif action_occurs(start_push_car) in predicates:
+            p = 0.8
+        elif action_occurs(start_push_gas) in predicates:
+            p = 0.8
+
+    # There isn't a rock under the car
+    elif action_occurs(start_push_car) in predicates and action_occurs(start_push_gas) in predicates:
+        p = 0.8
+    elif action_occurs(start_push_car) in predicates:
+        p = 0.8
+    elif action_occurs(start_push_gas) in predicates:
+        p = 0.8
+
+    rv = bernoulli(p)
+    out = rv.rvs(1)[0][0]
+    car_out = [False, False]
+    car_out[out] = True
+    return car_out
+
+
+push_gas.add_probabilistic_effect([car_stuck], push_probability)
+push_car.add_probabilistic_effect([car_stuck], push_probability)
+push_car.add_probabilistic_effect([tired], tired_push_probability)
+
+
+problem.add_goal(car_stuck)  # TODO: needs to be false
+
 print(problem)
