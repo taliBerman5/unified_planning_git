@@ -747,7 +747,7 @@ class ProbabilisticAction(InstantaneousAction):
 
     def __repr__(self) -> str:
         b = InstantaneousAction.__repr__(self)[0:-3]
-        s = ["ProbabilisticAction-", b]
+        s = ["Probabilistic ", b]
         s.append("    probabilistic effects = [\n")
         for pe in self._probabilistic_effects:
             s.append(f"      {str(pe)}\n")
@@ -864,7 +864,7 @@ class FixDurationStartAction(InstantaneousAction):
         self._end_action: ProbabilisticAction = None
     def __repr__(self) -> str:
         b = InstantaneousAction.__repr__(self)[0:-3]
-        s = ["FixDurationStartAction-", b]
+        s = ["start durative probabilistic ", b]
         s.append(f"    duration = {str(self._duration)}\n")
         s.append(f" end action = {self._end_action.name}")
         s.append("  }")
@@ -965,8 +965,8 @@ class DurationProbabilisticAction(Action):
             **kwargs: "up.model.types.Type",
     ):
         Action.__init__(self, _name, _parameters, _env, **kwargs)
-        self._start_action = FixDurationStartAction("start_"+_name, _parameters)
-        self._end_action = ProbabilisticAction("end_"+_name, _parameters)
+        self._start_action = FixDurationStartAction("start_"+_name, _parameters, _env, **kwargs)
+        self._end_action = ProbabilisticAction("end_"+_name, _parameters, _env, **kwargs)
         self._start_action.set_end_action(self._end_action)
 
     def __repr__(self) -> str:
@@ -1138,19 +1138,21 @@ class DurationProbabilisticAction(Action):
         self._start_action.set_fixed_duration(value)
 
 
-def start_end_actions(problem, actions: List["up.model.action.DurationProbabilisticAction"]):
-    action = up.shortcuts.UserType('action')
-    action_occurs = up.model.Fluent('action_occurs', up.shortcuts.BoolType(), a=action)
-
-    problem.add_fluent(action)
+def start_end_actions(problem, actions: List["up.model.Action.DurationProbabilisticAction"]):
+    Action = up.shortcuts.UserType('DurativeProbabilisticAction')
+    action_occurs = up.model.Fluent('action_occurs', up.shortcuts.BoolType(), a=Action)
+    objects = []
     problem.add_fluent(action_occurs, default_initial_value=False)
 
     for a in actions:
-        start_a = up.model.Object("start_" + a.name, action)
-
+        start_a = up.model.Object("start-" + a.name, Action)
+        objects.append(start_a)
         a.add_during_activation_effect(action_occurs(start_a), True)
-        a.add_end_precondition(action_occurs(start_a), True)
+        a.add_end_precondition(action_occurs(start_a))
         a.add_effect(action_occurs(start_a), False)
         problem.add_object(start_a)
+
+    return action_occurs, objects
+
 
 
