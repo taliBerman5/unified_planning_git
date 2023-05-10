@@ -24,6 +24,7 @@ from unified_planning.exceptions import UPConflictingEffectsException
 from enum import Enum, auto
 from typing import List, Callable, Dict, Optional, Set, Tuple, Union
 import numpy as np
+import inspect as i
 
 
 class EffectKind(Enum):
@@ -249,7 +250,7 @@ class ProbabilisticEffect:
                 "up.model.problem.AbstractProblem",
                 "up.model.state.ROState",
             ],
-            List["up.model.fnode.FNode"],
+            Dict[float, Dict["up.model.fnode.FNode", "up.model.fnode.FNode"]],
         ]
     ):
         for f in fluents:
@@ -261,8 +262,14 @@ class ProbabilisticEffect:
         self._fluents = fluents
         self._probability_func = probability_func
 
+
     def __repr__(self) -> str:  #TODO: TB maybe needs to be changed
-        return f"{self._fluents} := probabilistic"
+        s = []
+        s.append(f"{self._fluents}:= probabilistic")
+        func = i.getsource(self._probability_func)
+        return_statement = func[func.index("return ") + len("return "):]
+        s.append(return_statement)
+        return " ".join(s)
 
     def __eq__(self, oth: object) -> bool:
         if isinstance(oth, ProbabilisticEffect):

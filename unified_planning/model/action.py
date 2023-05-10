@@ -789,7 +789,7 @@ class ProbabilisticAction(InstantaneousAction):
                     "up.model.problem.AbstractProblem",
                     "up.model.state.ROState",
                 ],
-                List["up.model.fnode.FNode"],
+                Dict[float, Dict["up.model.fnode.FNode", "up.model.fnode.FNode"]],
             ]
     ):
         """
@@ -1102,7 +1102,7 @@ class DurationProbabilisticAction(Action):
                     "up.model.problem.AbstractProblem",
                     "up.model.state.ROState",
                 ],
-                List["up.model.fnode.FNode"],
+                Dict[float, Dict["up.model.fnode.FNode", "up.model.fnode.FNode"]],
             ]
     ):
         """

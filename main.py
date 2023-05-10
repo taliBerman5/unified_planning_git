@@ -69,19 +69,21 @@ add_object_condition_effect(place_rock, free(bodyParts[0]))
 add_object_condition_effect(place_rock, free(bodyParts[1]))
 
 
-def tired_place_probability(problem, state):
-    # The probability of finding a good rock when searching
-    p = 0.8
-    rv = bernoulli(p)
-    tired = rv.rvs(1)[0][0]
-    if tired:
-        return [True]
-    return [False]
+def tired_probability(problem, state):
+    p = 0
+    predicates = state.predicates
+    # The probability of getting tired when the robot pushes the car
+    if action_occurs(start_push_car) in predicates:
+        p = 0.8
+    # The probability of getting tired when the robot places a rock
+    elif action_occurs(start_place_rock) in predicates:
+        p = 0.4
+    return {p: {tired: True}, 1-p: {tired: False}}
 
 
 place_rock.add_effect(rock_under_car(rock), True)
 place_rock.add_effect(got_rock(rock), False)
-place_rock.add_probabilistic_effect([tired], tired_place_probability)
+place_rock.add_probabilistic_effect([tired], tired_probability)
 problem.add_action(place_rock)
 
 """ Search a rock Action 
@@ -92,15 +94,12 @@ search.set_fixed_duration(3)
 add_object_condition_effect(search, free(bodyParts[0]))
 add_object_condition_effect(search, free(bodyParts[1]))
 
+import inspect as i
 
 def rock_probability(problem, state):
     # The probability of finding a good rock when searching
     p = 0.8
-    rv = bernoulli(p)
-    rock = rv.rvs(1)[0][0]
-    rock_found = [False, False]
-    rock_found[rock] = True
-    return rock_found
+    return {p: {got_rock(rocks[0]): True, got_rock(rocks[1]): False}, 1-p: {got_rock(rocks[0]): False, got_rock(rocks[1]): True}}
 
 
 search.add_probabilistic_effect([got_rock(rocks[0]), got_rock(rocks[1])], rock_probability)
@@ -126,22 +125,14 @@ problem.add_action(push_car)
 
 action_occurs, durative_probabilistic_action_objects = unified_planning.model.action.start_end_actions(problem,
                                                                                                        duration_probabilistic_actions)
-start_push_gas, start_push_car = (None, None)
+start_push_gas, start_push_car, start_place_rock = (None, None, None)
 for o in durative_probabilistic_action_objects:
     if o.name == 'start-push_gas':
         start_push_gas = o
     if o.name == 'start-push_car':
         start_push_car = o
-
-
-def tired_push_probability(problem, state):
-    # The probability of finding a good rock when searching
-    p = 0.8
-    rv = bernoulli(p)
-    tired = rv.rvs(1)[0][0]
-    if tired:
-        return [True]
-    return [False]
+    if o.name == 'start-place_rock':
+        start_place_rock = o
 
 
 def push_probability(problem, state):
@@ -175,16 +166,12 @@ def push_probability(problem, state):
     elif action_occurs(start_push_gas) in predicates:
         p = 0.8
 
-    rv = bernoulli(p)
-    out = rv.rvs(1)[0][0]
-    if out:
-        return [True]
-    return [False]
+    return {p: {car_out: True}, 1-p: {car_out: False}}
 
 
 push_gas.add_probabilistic_effect([car_out], push_probability)
 push_car.add_probabilistic_effect([car_out], push_probability)
-push_car.add_probabilistic_effect([tired], tired_push_probability)
+push_car.add_probabilistic_effect([tired], tired_probability)
 
 deadline = Timing(delay=6, timepoint=Timepoint(TimepointKind.START))
 problem.add_timed_goal(deadline, car_out)
