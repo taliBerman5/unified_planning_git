@@ -946,7 +946,7 @@ class FixDurationStartAction(InstantaneousAction):
 
 class DurationProbabilisticAction(Action):
     """Represents an action with fix duration and probabilistic effect.
-    The action is compound from instantaneous two actions -
+    The action is compound from two instantaneous actions -
     start action:
         preconditions - the precondition of the action
         effects - during activation effects

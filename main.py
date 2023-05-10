@@ -20,7 +20,6 @@ GasPedal = UserType('GasPedal')
 gasPedal = unified_planning.model.Object('gasPedal', GasPedal)
 problem.add_object(gasPedal)
 
-
 """ Init rocks """
 Rock = UserType('Rock')
 rocks_names = ['bad', 'good']
@@ -35,8 +34,8 @@ bodyParts_names = ['hands', 'legs']
 bodyParts = [unified_planning.model.Object(b, BodyPart) for b in bodyParts_names]
 problem.add_objects(bodyParts)
 
-car_stuck = unified_planning.model.Fluent('car_stuck', BoolType())
-problem.set_initial_value(car_stuck, True)
+car_out = unified_planning.model.Fluent('car_out', BoolType())
+problem.set_initial_value(car_out, False)
 
 tired = unified_planning.model.Fluent('tired', BoolType())
 problem.set_initial_value(tired, True)
@@ -85,7 +84,6 @@ place_rock.add_effect(got_rock(rock), False)
 place_rock.add_probabilistic_effect([tired], tired_place_probability)
 problem.add_action(place_rock)
 
-
 """ Search a rock Action 
     the robot can find a one of the rocks"""
 search = unified_planning.model.action.DurationProbabilisticAction('search')
@@ -110,7 +108,6 @@ problem.add_action(search)
 
 """ Push Actions """
 
-
 """ Push Gas Pedal Action """
 push_gas = unified_planning.model.action.DurationProbabilisticAction('push_gas')
 duration_probabilistic_actions.append(push_gas)
@@ -119,27 +116,23 @@ add_object_condition_effect(push_gas, free(bodyParts[1]))
 
 problem.add_action(push_gas)
 
-
 """ Push Car Action """
 push_car = unified_planning.model.action.DurationProbabilisticAction('push_car')
 duration_probabilistic_actions.append(push_car)
 push_car.set_fixed_duration(2)
 add_object_condition_effect(push_car, free(bodyParts[0]))
 
-
 problem.add_action(push_car)
 
-
-
-
-
-action_occurs, durative_probabilistic_action_objects = unified_planning.model.action.start_end_actions(problem, duration_probabilistic_actions)
-start_push_gas , start_push_car = (None, None)
+action_occurs, durative_probabilistic_action_objects = unified_planning.model.action.start_end_actions(problem,
+                                                                                                       duration_probabilistic_actions)
+start_push_gas, start_push_car = (None, None)
 for o in durative_probabilistic_action_objects:
     if o.name == 'start-push_gas':
         start_push_gas = o
     if o.name == 'start-push_car':
         start_push_car = o
+
 
 def tired_push_probability(problem, state):
     # The probability of finding a good rock when searching
@@ -156,7 +149,7 @@ def push_probability(problem, state):
     p = 0
     predicates = state.predicates
 
-    #The bad rock is under the car
+    # The bad rock is under the car
     if rock_under_car(rocks[0]) in predicates:
         if action_occurs(start_push_car) in predicates and action_occurs(start_push_gas) in predicates:
             p = 0.8
@@ -184,16 +177,16 @@ def push_probability(problem, state):
 
     rv = bernoulli(p)
     out = rv.rvs(1)[0][0]
-    car_out = [False, False]
-    car_out[out] = True
-    return car_out
+    if out:
+        return [True]
+    return [False]
 
 
-push_gas.add_probabilistic_effect([car_stuck], push_probability)
-push_car.add_probabilistic_effect([car_stuck], push_probability)
+push_gas.add_probabilistic_effect([car_out], push_probability)
+push_car.add_probabilistic_effect([car_out], push_probability)
 push_car.add_probabilistic_effect([tired], tired_push_probability)
 
-
-problem.add_goal(car_stuck)  # TODO: needs to be false
+deadline = Timing(delay=6, timepoint=Timepoint(TimepointKind.START))
+problem.add_timed_goal(deadline, car_out)
 
 print(problem)
